@@ -1,3 +1,7 @@
+# Modification beyond the official repo
+I added a app.py flask API file to host the model through API
+
+
 # StableLM: Stability AI Language Models
 
 ![Stochastic Parrot](/assets/mascot.png)
