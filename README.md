@@ -1,6 +1,14 @@
 # Modification beyond the official repo
 I added a app.py flask API file to host the model through API
 
+# How to use this API
+```shell
+pip install -U pip
+pip install accelerate bitsandbytes torch transformers
+pip install flask-cors
+git clone https://github.com/teaguexiao/StableLM
+python3 app.py
+```
 
 # StableLM: Stability AI Language Models
 
