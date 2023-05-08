@@ -1,7 +1,7 @@
 # Modification beyond the official repo
 I added a app.py flask API file to host the model through API
 
-# How to use this API
+# How to setup
 ```shell
 pip install -U pip
 pip install accelerate bitsandbytes torch transformers
@@ -9,6 +9,16 @@ pip install flask-cors
 git clone https://github.com/teaguexiao/StableLM
 python3 app.py
 ```
+
+# How to use this API
+```shell
+curl https://x.x.x.x/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "can you tell me a story of an AI robot?"
+  }'
+```
+You should replace x.x.x.x with your own server's IP address
 
 # StableLM: Stability AI Language Models
 
