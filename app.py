@@ -42,9 +42,11 @@ def create_img():
         model_id, scheduler=scheduler, torch_dtype=torch.float16
     )
     pipe = pipe.to("cuda")
-    image = pipe(data["prompt"], guidance_scale=7.5, num_inference_steps=20,height=data["height"], width=data["width"]).images[0]
+    prompt = "(RAW photo, best quality), (realistic, photo-realistic:1.2),1girl, on the street, mini skirt, shirt, crowded, outdoor, smile, (high detailed skin:1.4), soft lighting, high quality,fair skin, busty breasts, looking at viewer, straight-on,full body,depth of field,colorful startrails,gothic architecture,photorealistic,oil painting (medium) ,solo,long_hair,grey_hair_grey_eyes,eye contact,standing,tying hai"
+    #neg_prompts = "ng_deepnegative_v1_75t, paintings, sketches, (worst quality:2), (low quality:2), (normal quality:2), lowres, ((monochrome)), (grayscale:1.2), skin spots, acnes, skin blemishes, age spot, glans,extra fingers,fewer fingers,(watermark:1.2),(letters:1.2),(nsfw:1.2),teeth,mole,multiple breasts, (mutated hands and fingers:1.5 ), (long body :1.3), (mutation, poorly drawn :1.2) ,blurred,one hand with more than 5 fingers,one hand with less than 5 fingers,one hand with more than 5 digit,one hand with less than 5 digit,more than two shoes,more than 2 nipples,different nipples,more than 1 left hand,more than 1 right hand,more than 2 thighs,more than 2 legs,worst quality,low quality,normal quality"
 
-    image.save(output)
+    image = pipe(prompt, guidance_scale=7.5, num_inference_steps=20,height=384, width=512).images[0]
+    image.save(output)  
     return send_file(output), 200
 #
 @app.post("/create/create_text")
