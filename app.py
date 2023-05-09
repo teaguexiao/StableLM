@@ -31,7 +31,7 @@ CORS(app, support_credentials=True)
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return "Healthy", 200
 
 @app.get("/health")
 def health_check():
@@ -57,7 +57,7 @@ def create_img():
 
     image.save(output)
     return send_file(output), 200
-
+#
 @app.post("/create/create_text")
 def create_text():
     chat = ChatOpenAI(temperature=0)
