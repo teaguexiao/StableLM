@@ -12,19 +12,8 @@ from flask_cors import CORS, cross_origin
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 
 #for OPENAI
-from langchain.chat_models import ChatOpenAI
-from langchain import PromptTemplate, LLMChain
-from langchain.prompts.chat import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-    AIMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-)
-from langchain.schema import (
-    AIMessage,
-    HumanMessage,
-    SystemMessage
-)
+from langchain import OpenAI, ConversationChain
+from langchain import PromptTemplate
 
 app = Flask(__name__, template_folder="frontend", static_folder="frontend")
 CORS(app, support_credentials=True)
@@ -60,9 +49,19 @@ def create_img():
 #
 @app.post("/create/create_text")
 def create_text():
-    chat = ChatOpenAI(temperature=0)
     #data = request.json
-    result = chat([HumanMessage(content="从现在开始，你就是化身为叫作JOJO的女旅游博主，你喜欢全世界环游，你热爱时尚和数码产品，你热爱生活，你很有激情，你也很可爱。现在你要给OPPO Pad 2平板电脑制作一篇在户外旅行期间的使用体验文章，目的是吸引别人种草，你的配图场景是海边，画面风格是梦幻的 ，文章需要突出的产品功能是强劲性能，高刷新屏幕，5G通信，充电快，有手写笔等特点，但是不能很生硬地说出这些特点，你也不需要把以上的特点都描述出来，可以只体现其中几个特点就可以。\n还要求：\n1，尽可能体现真实使用过程\n2，多使用带有可爱的emoji\n3，多用短句，每句 话不超过20个字\n4，多用空行和分段\n5，带有一些感叹或者是偏感受的描述字眼\n6，最后加一些相关的tag\n7，你不必强调你是JOJO.")])
-    return result, 200
+    llm = OpenAI(model_name="gpt-3.5-turbo")
+    
+    multiple_input_prompt = PromptTemplate(
+        input_variables=["scen_name", "style_name", "product_name"], 
+        template="从现在开始，你就是一名资深的旅游博主，你喜欢全世界环游，你热爱时尚和数码产品，你热爱生活，你很有激情，你喜欢分享各种内容到社交媒体。现在你要给{product_name}制作一篇使用体验文章，目的是吸引别人种草，你的配图场景是{scen_name}，画面风格是{style_name}。文章需要突出的产品功能是强劲性能，高刷新屏幕，5G通信，充电快，有手写笔等特点，但是不能很生硬地说出这些特点，你也不需要把以上的特点都描述出来，可以只体现其中几个特点就可以。\n还要求：\n1，尽可能体现真实使用过程\n2，多使用带有可爱的emoji\n3，多用短句，每句话不超过20个字\n4，多用空行和分段\n5，带有一些感叹或者是偏感受的描述字眼\n6，最后加一些相关的tag\n"
+    )
+    content = multiple_input_prompt.format(scen_name="海边", style_name="梦幻的", product_name="Oppo Pad 2 平板电脑")
+    
+    conversation = ConversationChain(llm=llm, verbose=True)
+    output = conversation.predict(input=content)
 
-app.run(host='0.0.0.0', port=5000)
+    print(output)
+    return output, 200
+
+app.run(host='0.0.0.0', port=80)
