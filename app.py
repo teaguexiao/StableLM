@@ -1,56 +1,33 @@
 from flask import Flask, request, send_file, render_template
+from diffusers import (
+    StableDiffusionPipeline,
+    EulerDiscreteScheduler,
+    StableDiffusionImg2ImgPipeline,
+)
 import torch
+from PIL import Image
+from io import BytesIO
 import requests
 from flask_cors import CORS, cross_origin
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 
+#for OPENAI
+from langchain.chat_models import ChatOpenAI
+from langchain import PromptTemplate, LLMChain
+from langchain.prompts.chat import (
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    AIMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+)
+from langchain.schema import (
+    AIMessage,
+    HumanMessage,
+    SystemMessage
+)
 
 app = Flask(__name__, template_folder="frontend", static_folder="frontend")
 CORS(app, support_credentials=True)
-
-class StopOnTokens(StoppingCriteria):
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        stop_ids = [50278, 50279, 50277, 1, 0]
-        for stop_id in stop_ids:
-            if input_ids[0][-1] == stop_id:
-                return True
-        return False
-
-def cprint(msg: str, color: str = "blue", **kwargs) -> None:
-    color_codes = {
-        "blue": "\033[34m",
-        "red": "\033[31m",
-        "green": "\033[32m",
-        "yellow": "\033[33m",
-        "purple": "\033[35m",
-        "cyan": "\033[36m",
-    }
-    
-    if color not in color_codes:
-        raise ValueError(f"Invalid info color: `{color}`")
-    
-    print(color_codes[color] + msg + "\033[0m", **kwargs)
-
-model_name = "stabilityai/stablelm-tuned-alpha-7b"
-#model_name = "stabilityai/stablelm-base-alpha-7b"
-cprint(f"Using `{model_name}`", color="blue")
-
-# Select "big model inference" parameters
-torch_dtype = "float16" #@param ["float16", "bfloat16", "float"]
-load_in_8bit = False #@param {type:"boolean"}
-device_map = "auto"
-
-cprint(f"Loading with: `{torch_dtype=}, {load_in_8bit=}, {device_map=}`")
-
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    torch_dtype=getattr(torch, torch_dtype),
-    load_in_8bit=load_in_8bit,
-    device_map=device_map,
-    offload_folder="./offload",
-)
-        
 
 @app.route("/")
 def index():
@@ -60,51 +37,32 @@ def index():
 def health_check():
     return "Healthy", 200
 
-
-@app.post("/chat")
-def chat():
+@app.post("/create/create_img")
+def create_img():
     data = request.json
-    
-    #user_prompt = "Can you write a song about a pirate at sea?" #@param {type:"string"}
-    
-    user_prompt = data["user_content"]
-    system_prompt = data["system_content"]
+    #model_id = "andite/anything-v4.0" # 默认的，高品质、高细节的动漫风格
+    #model_id = 'Envvi/Inkpunk-Diffusion' # 温克朋克风格，提示词 nvinkpunk
+    #model_id = 'nousr/robo-diffusion-2-base' # 看起来很酷的机器人，提示词 nousr robot
+    #model_id = 'prompthero/openjourney' # openjorney 风格,提示词 mdjrny-v4 style
+    #model_id = 'dreamlike-art/dreamlike-photoreal-2.0' #写实，真实风格，提示词 photo
+    model_id = "stabilityai/stable-diffusion-2"
+    output = "output_txt2img.png"
 
-    prompt = f"{system_prompt}<|USER|>{user_prompt}<|ASSISTANT|>"
-
-    # Sampling args
-    max_new_tokens = 128 #@param {type:"slider", min:32.0, max:3072.0, step:32}
-    temperature = 0.7 #@param {type:"slider", min:0.0, max:1.25, step:0.05}
-    top_k = 0 #@param {type:"slider", min:0.0, max:1.0, step:0.05}
-    top_p = 0.9 #@param {type:"slider", min:0.0, max:1.0, step:0.05}
-    do_sample = True #@param {type:"boolean"}
-
-    cprint(f"Sampling with: `{max_new_tokens=}, {temperature=}, {top_k=}, {top_p=}, {do_sample=}`")
-
-    # Create `generate` inputs
-    inputs = tokenizer(prompt, return_tensors="pt")
-    inputs.to(model.device)
-
-    # Generate
-    tokens = model.generate(
-        **inputs,
-        max_new_tokens=max_new_tokens,
-        temperature=temperature,
-        top_k=top_k,
-        top_p=top_p,
-        do_sample=do_sample,
-        pad_token_id=tokenizer.eos_token_id,
-        stopping_criteria=StoppingCriteriaList([StopOnTokens()])
+    scheduler = EulerDiscreteScheduler.from_pretrained(model_id, subfolder="scheduler")
+    pipe = StableDiffusionPipeline.from_pretrained(
+        model_id, scheduler=scheduler, torch_dtype=torch.float16
     )
+    pipe = pipe.to("cuda")
+    image = pipe(data["prompt"], guidance_scale=7.5, num_inference_steps=20,height=data["height"], width=data["width"]).images[0]
 
-    # Extract out only the completion tokens
-    completion_tokens = tokens[0][inputs['input_ids'].size(1):]
-    completion = tokenizer.decode(completion_tokens, skip_special_tokens=True)
+    image.save(output)
+    return send_file(output), 200
 
-    # Display
-    print(user_prompt + " ", end="")
-    cprint(completion, color="green")
-
-    return completion, 200
+@app.post("/create/create_text")
+def create_text():
+    chat = ChatOpenAI(temperature=0)
+    #data = request.json
+    result = chat([HumanMessage(content="从现在开始，你就是化身为叫作JOJO的女旅游博主，你喜欢全世界环游，你热爱时尚和数码产品，你热爱生活，你很有激情，你也很可爱。现在你要给OPPO Pad 2平板电脑制作一篇在户外旅行期间的使用体验文章，目的是吸引别人种草，你的配图场景是海边，画面风格是梦幻的 ，文章需要突出的产品功能是强劲性能，高刷新屏幕，5G通信，充电快，有手写笔等特点，但是不能很生硬地说出这些特点，你也不需要把以上的特点都描述出来，可以只体现其中几个特点就可以。\n还要求：\n1，尽可能体现真实使用过程\n2，多使用带有可爱的emoji\n3，多用短句，每句 话不超过20个字\n4，多用空行和分段\n5，带有一些感叹或者是偏感受的描述字眼\n6，最后加一些相关的tag\n7，你不必强调你是JOJO.")])
+    return result, 200
 
 app.run(host='0.0.0.0', port=5000)
