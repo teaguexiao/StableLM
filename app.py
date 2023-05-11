@@ -10,6 +10,7 @@ from io import BytesIO
 import requests
 from flask_cors import CORS, cross_origin
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
+import json
 
 #for OPENAI
 from langchain import OpenAI, ConversationChain
@@ -18,15 +19,15 @@ from langchain import PromptTemplate
 app = Flask(__name__, template_folder="frontend", static_folder="frontend")
 CORS(app, support_credentials=True)
 
-@app.route("/")
+@app.route("/api")
 def index():
-    return "Healthy", 200
+    return "This is the API backend by Flask", 200
 
-@app.get("/health")
+@app.get("/api/health")
 def health_check():
     return "Healthy", 200
 
-@app.post("/create/create_img")
+@app.post("/api/create/create_img")
 def create_img():
     data = request.json
     #model_id = "andite/anything-v4.0" # 默认的，高品质、高细节的动漫风格
@@ -49,7 +50,7 @@ def create_img():
     image.save(output)  
     return send_file(output), 200
 #
-@app.post("/create/create_text")
+@app.post("/api/create/create_text")
 def create_text():
     #data = request.json
     llm = OpenAI(model_name="gpt-3.5-turbo")
@@ -62,8 +63,18 @@ def create_text():
     
     conversation = ConversationChain(llm=llm, verbose=True)
     output = conversation.predict(input=content)
-
+    
     print(output)
-    return output, 200
+    result = {
+        "code" : 200,
+        "data" : output,
+        "msg" : "文本生成成功！"
+    }
+    
+    return json.dumps(result), 200
 
-app.run(host='0.0.0.0', port=80)
+@app.post("/api/create/list_all_img")
+def list_all_img():
+    #function for listing all the images
+
+app.run(host='0.0.0.0', port=5000)
